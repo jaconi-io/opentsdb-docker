@@ -1,12 +1,12 @@
-FROM alpine:latest
+FROM alpine:3.12.3
 
 ENV TINI_VERSION v0.18.0
-ENV TSDB_VERSION 2.4.0
-ENV HBASE_VERSION 1.4.4
-ENV GNUPLOT_VERSION 5.2.4
+ENV TSDB_VERSION 2.4.1
+ENV HBASE_VERSION 2.2.7
+ENV GNUPLOT_VERSION 5.2.6
 ENV JAVA_HOME /usr/lib/jvm/java-1.8-openjdk
 ENV PATH $PATH:/usr/lib/jvm/java-1.8-openjdk/bin/
-ENV ALPINE_PACKAGES "rsyslog bash openjdk8 make wget libgd libpng libjpeg libwebp libjpeg-turbo cairo pango lua"
+ENV ALPINE_PACKAGES "rsyslog bash openjdk8 make wget libgd libpng libjpeg libwebp libjpeg-turbo cairo pango lua jruby jruby-irb asciidoctor"
 ENV BUILD_PACKAGES "build-base autoconf automake git python3-dev cairo-dev pango-dev gd-dev lua-dev readline-dev libpng-dev libjpeg-turbo-dev libwebp-dev sed"
 ENV HBASE_OPTS "-XX:+UseConcMarkSweepGC -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
 ENV JVMARGS "-XX:+UseConcMarkSweepGC -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -enableassertions -enablesystemassertions"
@@ -19,8 +19,6 @@ ENTRYPOINT ["/tini", "--"]
 # Add the base packages we'll need
 RUN apk --update add apk-tools \
     && apk add ${ALPINE_PACKAGES} \
-      # repo required for gnuplot \
-      --repository http://dl-cdn.alpinelinux.org/alpine/v3.0/testing/ \
     && mkdir -p /opt/opentsdb
 
 WORKDIR /opt/opentsdb/
@@ -40,8 +38,6 @@ RUN wget --no-check-certificate \
   && echo "tsd.http.request.max_chunk = 1000000" >> src/opentsdb.conf 
 
 RUN cd /opt/opentsdb/opentsdb-${TSDB_VERSION} \
-  && find . | xargs grep -s central.maven.org | cut -f1 -d : | xargs sed -i "s/http:\/\/central/https:\/\/repo1/g" \
-  && find . | xargs grep -s repo1.maven.org | cut -f1 -d : | xargs sed -i "s/http:\/\/repo1/https:\/\/repo1/g" \
   && ./build.sh \
   && cp build-aux/install-sh build/build-aux \
   && cd build \
@@ -50,7 +46,7 @@ RUN cd /opt/opentsdb/opentsdb-${TSDB_VERSION} \
   && rm -rf /opt/opentsdb/opentsdb-${TSDB_VERSION}
 
 RUN cd /tmp && \
-    wget https://sourceforge.net/projects/gnuplot/files/gnuplot/${GNUPLOT_VERSION}/gnuplot-${GNUPLOT_VERSION}.tar.gz && \
+    wget http://ftp.cstug.cz/pub/CTAN/graphics/gnuplot/${GNUPLOT_VERSION}/gnuplot-${GNUPLOT_VERSION}.tar.gz && \
     tar xzf gnuplot-${GNUPLOT_VERSION}.tar.gz && \
     cd gnuplot-${GNUPLOT_VERSION} && \
     ./configure && \
@@ -65,7 +61,6 @@ WORKDIR /opt/downloads
 RUN wget -O hbase-${HBASE_VERSION}.bin.tar.gz http://archive.apache.org/dist/hbase/${HBASE_VERSION}/hbase-${HBASE_VERSION}-bin.tar.gz \
     && tar xzvf hbase-${HBASE_VERSION}.bin.tar.gz \
     && mv hbase-${HBASE_VERSION} /opt/hbase \
-    && rm -r /opt/hbase/docs \
     && rm hbase-${HBASE_VERSION}.bin.tar.gz
 
 # Add misc startup files
